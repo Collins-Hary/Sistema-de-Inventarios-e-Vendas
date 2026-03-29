@@ -1,0 +1,90 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Utilizador {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  nome      String
+  senha     String
+  criadorEm DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  vendas Venda[]
+
+  @@map("utilizadores")
+}
+
+model Categoria {
+  id        Int      @id @default(autoincrement())
+  nome      String   @unique
+  descricao String?
+  criadorEm DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  produtos Produto[]
+
+  @@map("categorias")
+}
+
+model Produto {
+  id            Int     @id @default(autoincrement())
+  nome          String
+  descricao     String?
+  preco         Float
+  custo         Float
+  quantidade    Int     @default(0)
+  quantidadeMinima Int @default(10)
+  ativo         Boolean @default(true)
+  criadorEm     DateTime @default(now())
+  atualizadoEm  DateTime @updatedAt
+
+  categoriaId   Int
+  categoria     Categoria @relation(fields: [categoriaId], references: [id], onDelete: Cascade)
+
+  itensVenda ItemVenda[]
+
+  @@map("produtos")
+}
+
+model Venda {
+  id            Int      @id @default(autoincrement())
+  dataVenda     DateTime @default(now())
+  total         Float
+  lucroTotal    Float
+  observacoes   String?
+  criadorEm     DateTime @default(now())
+  atualizadoEm  DateTime @updatedAt
+
+  utilizadorId  Int
+  utilizador    Utilizador @relation(fields: [utilizadorId], references: [id], onDelete: Cascade)
+
+  itensVenda    ItemVenda[]
+
+  @@map("vendas")
+}
+
+model ItemVenda {
+  id            Int     @id @default(autoincrement())
+  quantidade    Int
+  precoUnitario Float
+  subtotal      Float
+  lucroUnitario Float
+  criadorEm     DateTime @default(now())
+
+  vendaId       Int
+  venda         Venda @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+
+  produtoId     Int
+  produto       Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+
+  @@map("itens_vendas")
+}

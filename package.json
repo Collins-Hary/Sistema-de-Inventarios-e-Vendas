@@ -1,0 +1,32 @@
+{
+    "name": "sistema-inventarios-vendas",
+    "version": "1.0.0",
+    "description": "Sistema de Inventário e Vendas",
+    "scripts": {
+        "dev": "next dev",
+        "build": "next build",
+        "start": "next start",
+        "lint": "next lint",
+        "prisma:generate": "prisma generate",
+        "prisma:migrate": "prisma migrate dev",
+        "prisma:studio": "prisma studio"
+    },
+    "dependencies": {
+        "react": "^18.2.0",
+        "react-dom": "^18.2.0",
+        "next": "^14.0.0",
+        "@prisma/client": "^5.7.0",
+        "lucide-react": "^0.294.0",
+        "axios": "^1.6.2"
+    },
+    "devDependencies": {
+        "typescript": "^5.3.3",
+        "@types/react": "^18.2.37",
+        "@types/react-dom": "^18.2.15",
+        "@types/node": "^20.10.0",
+        "autoprefixer": "^10.4.16",
+        "postcss": "^8.4.32",
+        "tailwindcss": "^3.3.6",
+        "prisma": "^5.7.0"
+    }
+}
