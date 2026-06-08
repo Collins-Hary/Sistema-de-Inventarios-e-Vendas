@@ -15,6 +15,7 @@ model Utilizador {
   email     String   @unique
   nome      String
   senha     String
+  authToken String?  @unique
   criadorEm DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
