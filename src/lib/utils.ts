@@ -1,7 +1,7 @@
 export function formatarMoeda(valor: number): string {
   return new Intl.NumberFormat('pt-PT', {
     style: 'currency',
-    currency: 'EUR',
+    currency: 'AOA',
   }).format(valor)
 }
 

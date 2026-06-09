@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 
 interface ItemVendaPayload {
-  produtoId: number
-  quantidade: number
+  produtoId: number | null
+  quantidade: number | null
 }
 
 function parseInteger(value: unknown) {
@@ -15,6 +15,10 @@ function agruparItens(itens: ItemVendaPayload[]) {
   const mapa = new Map<number, number>()
 
   itens.forEach((item) => {
+    if (item.produtoId == null || item.quantidade == null) {
+      return
+    }
+
     const quantidadeAtual = mapa.get(item.produtoId) ?? 0
     mapa.set(item.produtoId, quantidadeAtual + item.quantidade)
   })
@@ -26,7 +30,7 @@ function agruparItens(itens: ItemVendaPayload[]) {
 }
 
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
