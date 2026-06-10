@@ -78,16 +78,6 @@ export async function PUT(
     const dados = await request.json()
     const { utilizadorId, observacoes, itensVenda } = dados
 
-    const vendaExistente = await prisma.venda.findUnique({
-      where: { id },
-      include: {
-        itensVenda: true,
-      },
-    })
-
-    if (!vendaExistente) {
-      return NextResponse.json({ erro: 'Venda não encontrada' }, { status: 404 })
-    }
 
     const updateData: any = {}
 
@@ -137,135 +127,89 @@ export async function PUT(
       }
     }
 
-    let vendaAtualizada
+    const vendaAtualizada = await prisma.$transaction(async (tx) => {
+      const vendaExistente = await tx.venda.findUnique({
+        where: { id },
+        include: { itensVenda: true },
+      })
 
-    if (itemsData) {
+      if (!vendaExistente) {
+        throw new Error('VENDA_NAO_ENCONTRADA')
+      }
+
+      if (!itemsData) {
+        return await tx.venda.update({
+          where: { id },
+          data: updateData,
+          include: { utilizador: true, itensVenda: { include: { produto: true } } },
+        })
+      }
+
       const itensAgrupados = agruparItens(itemsData)
-      const produtoIds = Array.from(
-        new Set([
-          ...itensAgrupados.map((item) => item.produtoId),
-          ...vendaExistente.itensVenda.map((item) => item.produtoId),
-        ])
-      )
+      const produtoIds = Array.from(new Set([
+        ...itensAgrupados.map((i) => i.produtoId),
+        ...vendaExistente.itensVenda.map((i) => i.produtoId),
+      ]))
 
-      const produtos = await prisma.produto.findMany({
+      const produtos = await tx.produto.findMany({
         where: { id: { in: produtoIds } },
       })
 
-      if (produtos.length !== produtoIds.length) {
-        return NextResponse.json(
-          { erro: 'Um ou mais produtos não foram encontrados' },
-          { status: 404 }
-        )
-      }
-
       const estoqueRestaurado = new Map<number, number>()
       vendaExistente.itensVenda.forEach((item) => {
-        estoqueRestaurado.set(
-          item.produtoId,
-          (estoqueRestaurado.get(item.produtoId) ?? 0) + item.quantidade
-        )
+        estoqueRestaurado.set(item.produtoId, (estoqueRestaurado.get(item.produtoId) ?? 0) + item.quantidade)
       })
 
-      const produtoIdsTodos = new Set<number>([
-        ...estoqueRestaurado.keys(),
-        ...itensAgrupados.map((item) => item.produtoId),
-      ])
+      const updateStockOps = produtoIds.map((pId) => {
+        const produto = produtos.find((p) => p.id === pId)
+        if (!produto) throw new Error('PRODUTO_NAO_ENCONTRADO')
 
-      const updateStockOps = Array.from(produtoIdsTodos).map((produtoId) => {
-        const produto = produtos.find((produto) => produto.id === produtoId)
-        if (!produto) {
-          throw new Error('Produto não encontrado durante a atualização de estoque')
-        }
+        const qAntiga = estoqueRestaurado.get(pId) ?? 0
+        const qNova = itensAgrupados.find((i) => i.produtoId === pId)?.quantidade ?? 0
+        const novoSaldo = produto.quantidade + qAntiga - qNova
 
-        const quantidadeAntiga = estoqueRestaurado.get(produtoId) ?? 0
-        const quantidadeNova = itensAgrupados.find((item) => item.produtoId === produtoId)?.quantidade ?? 0
-        const novoSaldo = produto.quantidade + quantidadeAntiga - quantidadeNova
-
-        if (novoSaldo < 0) {
-          throw new Error(`Estoque insuficiente para produto ${produto.nome}`)
-        }
-
-        return {
-          produtoId: produto.id,
-          novoSaldo,
-        }
+        if (novoSaldo < 0) throw new Error(`Estoque insuficiente para produto ${produto.nome}`)
+        return { id: pId, novoSaldo }
       })
 
       const itensParaCriar = itensAgrupados.map((item) => {
-        const produto = produtos.find((produto) => produto.id === item.produtoId)!
-        const precoUnitario = produto.preco
-        const lucroUnitario = produto.preco - produto.custo
-        const subtotal = precoUnitario * item.quantidade
-
+        const p = produtos.find((p) => p.id === item.produtoId)!
         return {
-          produtoId: produto.id,
+          produtoId: p.id,
           quantidade: item.quantidade,
-          precoUnitario,
-          lucroUnitario,
-          subtotal,
+          precoUnitario: p.preco,
+          lucroUnitario: p.preco - p.custo,
+          subtotal: p.preco * item.quantidade,
         }
       })
 
-      const total = itensParaCriar.reduce((acc, item) => acc + item.subtotal, 0)
-      const lucroTotal = itensParaCriar.reduce(
-        (acc, item) => acc + item.lucroUnitario * item.quantidade,
-        0
-      )
+      const total = itensParaCriar.reduce((acc, i) => acc + i.subtotal, 0)
+      const lucroTotal = itensParaCriar.reduce((acc, i) => acc + (i.lucroUnitario * i.quantidade), 0)
 
-      vendaAtualizada = await prisma.$transaction(async (tx) => {
-        const venda = await tx.venda.update({
-          where: { id },
-          data: {
-            ...updateData,
-            total,
-            lucroTotal,
-            itensVenda: {
-              deleteMany: {},
-              create: itensParaCriar,
-            },
-          },
-          include: {
-            utilizador: true,
-            itensVenda: {
-              include: {
-                produto: true,
-              },
-            },
-          },
-        })
+      await Promise.all(updateStockOps.map((op) => 
+        tx.produto.update({ where: { id: op.id }, data: { quantidade: op.novoSaldo } })
+      ))
 
-        await Promise.all(
-          updateStockOps.map((item) =>
-            tx.produto.update({
-              where: { id: item.produtoId },
-              data: {
-                quantidade: item.novoSaldo,
-              },
-            })
-          )
-        )
-
-        return venda
-      })
-    } else {
-      vendaAtualizada = await prisma.venda.update({
+      return await tx.venda.update({
         where: { id },
-        data: updateData,
-        include: {
-          utilizador: true,
+        data: {
+          ...updateData,
+          total,
+          lucroTotal,
           itensVenda: {
-            include: {
-              produto: true,
-            },
+            deleteMany: {},
+            create: itensParaCriar,
           },
         },
+        include: { utilizador: true, itensVenda: { include: { produto: true } } },
       })
-    }
+    })
 
     return NextResponse.json(vendaAtualizada, { status: 200 })
   } catch (erro: any) {
     console.error(erro)
+    if (erro.message === 'VENDA_NAO_ENCONTRADA') return NextResponse.json({ erro: 'Venda não encontrada' }, { status: 404 })
+    if (erro.message === 'PRODUTO_NAO_ENCONTRADO') return NextResponse.json({ erro: 'Um ou mais produtos não foram encontrados' }, { status: 404 })
     if (String(erro.message).includes('Estoque insuficiente')) {
       return NextResponse.json({ erro: erro.message }, { status: 400 })
     }
@@ -274,5 +218,40 @@ export async function PUT(
       { erro: 'Erro ao atualizar venda' },
       { status: 500 }
     )
+  }
+}
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const id = Number(params.id)
+    if (Number.isNaN(id)) return NextResponse.json({ erro: 'ID inválido' }, { status: 400 })
+
+    await prisma.$transaction(async (tx) => {
+      const venda = await tx.venda.findUnique({
+        where: { id },
+        include: { itensVenda: true },
+      })
+
+      if (!venda) throw new Error('NOT_FOUND')
+
+      // Devolver estoque
+      await Promise.all(venda.itensVenda.map((item) =>
+        tx.produto.update({
+          where: { id: item.produtoId },
+          data: { quantidade: { increment: item.quantidade } },
+        })
+      ))
+
+      await tx.itemVenda.deleteMany({ where: { vendaId: id } })
+      await tx.venda.delete({ where: { id } })
+    })
+
+    return NextResponse.json({ mensagem: 'Venda excluída com sucesso' }, { status: 200 })
+  } catch (erro: any) {
+    if (erro.message === 'NOT_FOUND') return NextResponse.json({ erro: 'Venda não encontrada' }, { status: 404 })
+    return NextResponse.json({ erro: 'Erro ao excluir venda' }, { status: 500 })
   }
 }

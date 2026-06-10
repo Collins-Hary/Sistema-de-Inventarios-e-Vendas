@@ -1,7 +1,7 @@
 'use client'
 
 import { CheckCircle, AlertCircle, XCircle } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 interface ToastProps {
   mensagem: string
@@ -12,7 +12,10 @@ interface ToastProps {
 export default function Toast({ mensagem, tipo = 'info', duracao = 3000 }: ToastProps) {
   const [visivel, setVisivel] = useState(true)
 
-  setTimeout(() => setVisivel(false), duracao)
+  useEffect(() => {
+    const timer = setTimeout(() => setVisivel(false), duracao)
+    return () => clearTimeout(timer)
+  }, [duracao])
 
   if (!visivel) return null
 

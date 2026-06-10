@@ -52,11 +52,17 @@ export default function ProdutosPage() {
       ])
 
       if (!produtosResponse.ok || !categoriasResponse.ok) {
-        throw new Error('Erro ao buscar dados.')
+        throw new Error('Erro ao buscar dados de produtos ou categorias.')
       }
 
       const produtosData = await produtosResponse.json()
       const categoriasData = await categoriasResponse.json()
+
+      // Adicionar verificação para garantir que categoriasData é um array
+      if (!Array.isArray(categoriasData)) {
+        console.error('API de categorias retornou dados em formato inesperado:', categoriasData)
+        throw new Error('A API de categorias não retornou uma lista válida de categorias. Verifique a implementação da API.')
+      }
 
       setProdutos(produtosData)
       setCategorias(categoriasData)
@@ -70,6 +76,13 @@ export default function ProdutosPage() {
   useEffect(() => {
     buscarDados()
   }, [])
+
+  useEffect(() => {
+    if (sucesso) {
+      const timer = setTimeout(() => setSucesso(''), 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [sucesso])
 
   const produtosFiltrados = useMemo(() => {
     return produtos.filter((produto) => {
@@ -184,44 +197,35 @@ export default function ProdutosPage() {
         <Sidebar />
 
         <main className="flex-1 space-y-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="space-y-6">
             <div>
               <h1 className="text-4xl font-bold">📦 Produtos</h1>
               <p className="text-gray-600 mt-1">Gerencie produtos, categorias e estoque.</p>
-                {semCategorias && (
-                  <p className="mt-2 text-sm text-yellow-700">
-                    Cadastre uma categoria antes de adicionar produtos.
-                  </p>
-                )}
+              {semCategorias && (
+                <p className="mt-2 text-sm text-yellow-700">Cadastre uma categoria antes de adicionar produtos.</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-[1fr_2fr] gap-4 bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+              <div className="flex gap-3">
+                <Button onClick={abrirModalCriar} disabled={semCategorias}>+ Novo Produto</Button>
+                <Button type="button" variant="secondary" onClick={abrirModalCriarCategoria}>+ Categoria</Button>
               </div>
-              <div className="flex flex-wrap gap-3 items-center">
-                <Button onClick={abrirModalCriar} disabled={semCategorias}>
-                  + Novo Produto
-                </Button>
-                <Button type="button" variant="secondary" onClick={abrirModalCriarCategoria}>
-                  + Nova Categoria
-                </Button>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                  value={buscaNome}
+                  onChange={(event) => setBuscaNome(event.target.value)}
+                  placeholder="Filtrar por nome do produto..."
+                />
+                <select
+                  className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-gray-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  value={filtroCategoria}
+                  onChange={(event) => setFiltroCategoria(event.target.value)}
+                >
+                  <option value="">Todas as categorias</option>
+                  {categorias.map((cat) => <option key={cat.id} value={cat.id}>{cat.nome}</option>)}
+                </select>
               </div>
-              <Input
-                value={buscaNome}
-                onChange={(event) => setBuscaNome(event.target.value)}
-                placeholder="Buscar por nome"
-                className="md:col-span-2"
-              />
-            <div>
-              <label className="sr-only">Filtrar por categoria</label>
-              <select
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                value={filtroCategoria}
-                onChange={(event) => setFiltroCategoria(event.target.value)}
-              >
-                <option value="">Todas as categorias</option>
-                {categorias.map((categoria) => (
-                  <option key={categoria.id} value={categoria.id}>
-                    {categoria.nome}
-                  </option>
-                ))}
-              </select>
             </div>
           </div>
 

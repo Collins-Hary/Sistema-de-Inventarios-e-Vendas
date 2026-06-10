@@ -84,6 +84,13 @@ export default function VendasPage() {
     buscarDados()
   }, [])
 
+  useEffect(() => {
+    if (sucesso) {
+      const timer = setTimeout(() => setSucesso(''), 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [sucesso])
+
   const vendasFiltradas = useMemo(() => {
     return vendas.filter((venda) => {
       const nomeUsuario = venda.utilizador.nome.toLowerCase()
@@ -94,7 +101,12 @@ export default function VendasPage() {
       const fimValido = dataFim ? new Date(dataFim) : null
 
       const matchesInicio = inicioValido ? dataVenda >= inicioValido : true
-      const matchesFim = fimValido ? dataVenda <= new Date(fimValido.setHours(23, 59, 59)) : true
+      
+      let matchesFim = true
+      if (fimValido) {
+        const limiteFim = new Date(fimValido.getTime() + (24 * 60 * 60 * 1000) - 1)
+        matchesFim = dataVenda <= limiteFim
+      }
 
       return matchesUsuario && matchesInicio && matchesFim
     })
