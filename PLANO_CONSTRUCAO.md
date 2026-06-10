@@ -164,7 +164,7 @@ public/
 
 #### **Dia 1: Sistema de Alerta**
 - [x] Toast/Notificação: Stock < mínimo → Card vermelho no Dashboard
-- [ ] Email de alerta (opcional)
+- [x] Email de alerta (opcional)
 - [x] Badge na Navbar mostrando número de produtos com stock baixo
 
 #### **Dia 2: Relatórios e Extras**

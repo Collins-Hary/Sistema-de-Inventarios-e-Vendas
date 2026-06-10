@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import { enviarEmailAlertaStock } from '@/lib/email'
 
 interface ItemVendaPayload {
   produtoId: number | null
@@ -203,6 +204,14 @@ export async function PUT(
         },
         include: { utilizador: true, itensVenda: { include: { produto: true } } },
       })
+    })
+
+    // Verificação de stock baixo pós-venda para disparar alertas
+    vendaAtualizada.itensVenda.forEach((item: any) => {
+      const p = item.produto
+      if (p.quantidade < p.quantidadeMinima) {
+        enviarEmailAlertaStock(p.nome, p.quantidade, p.quantidadeMinima)
+      }
     })
 
     return NextResponse.json(vendaAtualizada, { status: 200 })
