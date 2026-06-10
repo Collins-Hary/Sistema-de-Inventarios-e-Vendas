@@ -127,7 +127,7 @@ npm run dev
 | Frontend Produtos | ⏳ | Shell pronto |
 | Frontend Vendas | ⏳ | Shell pronto |
 | Autenticação | ⏳ | A fazer |
-| Alertas Stock | ⏳ | Componente pronto, falta lógica |
+| Alertas Stock | ✅ | Toast e visualização implementados |
 | Relatórios | ⏳ | A fazer |
 
 ---

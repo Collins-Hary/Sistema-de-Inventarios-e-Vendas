@@ -163,9 +163,9 @@ public/
 ### **FASE 4: Diferencial (2 dias)**
 
 #### **Dia 1: Sistema de Alerta**
-- [ ] Toast/Notificação: Stock < mínimo → Card vermelho no Dashboard
+- [x] Toast/Notificação: Stock < mínimo → Card vermelho no Dashboard
 - [ ] Email de alerta (opcional)
-- [ ] Badge na Navbar mostrando número de produtos com stock baixo
+- [x] Badge na Navbar mostrando número de produtos com stock baixo
 
 #### **Dia 2: Relatórios e Extras**
 - [ ] Exportar vendas para CSV
