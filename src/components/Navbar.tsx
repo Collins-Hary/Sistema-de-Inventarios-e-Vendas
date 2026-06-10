@@ -12,7 +12,7 @@ export default function Navbar() {
     <nav className="bg-blue-600 text-white shadow-lg">
       <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
         <Link href="/" className="text-2xl font-bold">
-          📦 Inventário
+           Inventário
         </Link>
 
         <button

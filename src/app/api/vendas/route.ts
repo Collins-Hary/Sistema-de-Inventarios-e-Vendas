@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { enviarEmailAlertaStock } from '@/lib/email'
 
 export async function GET() {
   try {
@@ -24,9 +23,15 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const dados = await request.json()
+    const utilizadorId = Number(dados.utilizadorId)
     
     // Aceita tanto 'itens' quanto 'itensVenda' para evitar erros de integração
     const itensParaProcessar = dados.itens || dados.itensVenda
+
+    const utilizador = await prisma.utilizador.findUnique({ where: { id: utilizadorId } })
+    if (!utilizador) {
+      return NextResponse.json({ erro: `Utilizador (ID ${utilizadorId}) não encontrado no sistema.` }, { status: 404 })
+    }
 
     if (!itensParaProcessar || itensParaProcessar.length === 0) {
       return NextResponse.json({ erro: 'A venda deve ter pelo menos um item' }, { status: 400 })
@@ -71,8 +76,8 @@ export async function POST(request: NextRequest) {
 
       const novaVenda = await tx.venda.create({
         data: {
-          utilizadorId: dados.utilizadorId, // Assumindo que utilizadorId vem nos dados
-          observacoes: dados.observacoes,
+          utilizadorId: utilizadorId,
+          observacoes,
           total: totalVenda,
           lucroTotal: lucroTotalVenda,
           itensVenda: {
@@ -83,19 +88,6 @@ export async function POST(request: NextRequest) {
       })
 
       return novaVenda
-    })
-
-    // Verificação de stock baixo após a criação da venda para disparar alertas por email
-    const vendaCompleta = await prisma.venda.findUnique({
-      where: { id: resultado.id },
-      include: { itensVenda: { include: { produto: true } } }
-    })
-
-    vendaCompleta?.itensVenda.forEach((item) => {
-      const p = item.produto
-      if (p.quantidade < p.quantidadeMinima) {
-        enviarEmailAlertaStock(p.nome, p.quantidade, p.quantidadeMinima)
-      }
     })
 
     return NextResponse.json(resultado, { status: 201 })

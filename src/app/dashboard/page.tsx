@@ -4,7 +4,7 @@ import VendasChart from '@/components/VendasChart'
 import prisma from '@/lib/prisma'
 import { formatarMoeda } from '@/lib/utils'
 import GerarRelatorioPDF from '@/components/GerarRelatorioPDF'
-import Toast from '@/components/Toast'
+// import Toast from '@/components/Toast'
 
 async function getDashboardData() {
   const agora = new Date()

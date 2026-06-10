@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 
+// GET - Buscar um produto pelo ID
 export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string } }
@@ -22,6 +23,7 @@ export async function GET(
   }
 }
 
+// PUT - Atualizar dados do produto
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -62,6 +64,7 @@ export async function PUT(
   }
 }
 
+// DELETE - Excluir produto (apenas se não houver vendas vinculadas)
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: { id: string } }

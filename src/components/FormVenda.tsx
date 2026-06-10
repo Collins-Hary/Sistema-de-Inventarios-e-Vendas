@@ -9,7 +9,12 @@ interface ProdutoParaVenda {
   nome: string
   preco: number
   custo: number
-  quantidade: number
+  quantidadeMinima: number // Adicionado para consistência
+}
+
+interface Utilizador {
+  id: number
+  nome: string
 }
 
 interface VendaItemForm {
@@ -20,11 +25,12 @@ interface VendaItemForm {
 interface FormVendaProps {
   produtos: ProdutoParaVenda[]
   onCancel: () => void
+  utilizadores: Utilizador[] // Adicionado para seleção de utilizador
   onSaved: () => void
 }
 
-export default function FormVenda({ produtos, onCancel, onSaved }: FormVendaProps) {
-  const [utilizadorId, setUtilizadorId] = useState('1')
+export default function FormVenda({ produtos, utilizadores, onCancel, onSaved }: FormVendaProps) {
+  const [utilizadorId, setUtilizadorId] = useState(utilizadores?.[0]?.id?.toString() || '')
   const [observacoes, setObservacoes] = useState('')
   const [itensVenda, setItensVenda] = useState<VendaItemForm[]>([
     { produtoId: produtos[0]?.id?.toString() || '', quantidade: '1' },
@@ -137,13 +143,20 @@ export default function FormVenda({ produtos, onCancel, onSaved }: FormVendaProp
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">ID do utilizador</label>
-          <Input
+          <label className="block text-sm font-medium text-gray-700 mb-2">Utilizador</label>
+          <select
             value={utilizadorId}
             onChange={(event) => setUtilizadorId(event.target.value)}
-            placeholder="1"
             disabled={carregando}
-          />
+            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <option value="">Selecione um utilizador</option>
+            {utilizadores.map((utilizador) => (
+              <option key={utilizador.id} value={utilizador.id}>
+                {utilizador.nome}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-2">Observações</label>

@@ -41,6 +41,7 @@ interface ProdutoParaVenda {
   nome: string
   preco: number
   custo: number
+  quantidadeMinima: number // Adicionado para consistência
   quantidade: number
 }
 
@@ -53,6 +54,7 @@ export default function VendasPage() {
   const [abrirModal, setAbrirModal] = useState(false)
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState('')
+  const [utilizadores, setUtilizadores] = useState<Utilizador[]>([])
   const [sucesso, setSucesso] = useState('')
 
   const buscarDados = async () => {
@@ -60,22 +62,26 @@ export default function VendasPage() {
     setErro('')
 
     try {
-      const [vendasResponse, produtosResponse] = await Promise.all([
+      const [vendasResponse, utilizadoresResponse, produtosResponse] = await Promise.all([
         fetch('/api/vendas'),
+        fetch('/api/utilizadores'), // Buscar utilizadores
         fetch('/api/produtos'),
       ])
 
-      if (!vendasResponse.ok || !produtosResponse.ok) {
+      if (!vendasResponse.ok || !utilizadoresResponse.ok || !produtosResponse.ok) {
         const vendasError = vendasResponse.ok ? '' : `Erro vendas: ${vendasResponse.status} ${vendasResponse.statusText}. `
+        const utilizadoresError = utilizadoresResponse.ok ? '' : `Erro utilizadores: ${utilizadoresResponse.status} ${utilizadoresResponse.statusText}. `
         const produtosError = produtosResponse.ok ? '' : `Erro produtos: ${produtosResponse.status} ${produtosResponse.statusText}. `
-        throw new Error(`Erro ao buscar dados: ${vendasError}${produtosError}Verifique o console para mais detalhes.`)
+        throw new Error(`Erro ao buscar dados: ${vendasError}${utilizadoresError}${produtosError}Verifique o console para mais detalhes.`)
       }
 
       const vendasData = await vendasResponse.json()
       const produtosData = await produtosResponse.json()
-
+      const utilizadoresData = await utilizadoresResponse.json()
+      
       setVendas(vendasData)
       setProdutos(produtosData)
+      setUtilizadores(utilizadoresData)
     } catch (error: any) {
       setErro(error.message || 'Não foi possível carregar os dados de vendas.')
     } finally {
@@ -264,7 +270,11 @@ export default function VendasPage() {
                   </button>
                 </div>
 
-                <FormVenda produtos={produtos} onCancel={fecharModal} onSaved={handleVendaSalva} />
+                <FormVenda 
+                  produtos={produtos} 
+                  utilizadores={utilizadores} // Passar utilizadores para o formulário
+                  onCancel={fecharModal} 
+                  onSaved={handleVendaSalva} />
               </div>
             </div>
           )}
