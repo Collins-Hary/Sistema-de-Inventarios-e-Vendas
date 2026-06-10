@@ -1,8 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { Menu } from 'lucide-react'
+import { Menu, Package } from 'lucide-react'
 import { useState } from 'react'
+import LowStockBadge from './LowStockBadge'
 
 export default function Navbar() {
   const [menuAberto, setMenuAberto] = useState(false)
@@ -28,7 +29,9 @@ export default function Navbar() {
           <Link href="/produtos" className="hover:bg-blue-700 px-3 py-2 rounded">
             Produtos
           </Link>
-          <Link href="/vendas" className="hover:bg-blue-700 px-3 py-2 rounded">
+          <Link href="/vendas" className="hover:bg-blue-700 px-3 py-2 rounded flex items-center">
+            <Package size={18} className="mr-1" />
+            <LowStockBadge />
             Vendas
           </Link>
         </div>

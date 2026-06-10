@@ -1,33 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-
-interface ItemVendaPayload {
-  produtoId: number | null
-  quantidade: number | null
-}
-
-function parseInteger(value: unknown) {
-  const num = Number(value)
-  return Number.isInteger(num) ? num : null
-}
-
-function agruparItens(itens: ItemVendaPayload[]) {
-  const mapa = new Map<number, number>()
-
-  itens.forEach((item) => {
-    if (item.produtoId == null || item.quantidade == null) {
-      return
-    }
-
-    const quantidadeAtual = mapa.get(item.produtoId) ?? 0
-    mapa.set(item.produtoId, quantidadeAtual + item.quantidade)
-  })
-
-  return Array.from(mapa.entries()).map(([produtoId, quantidade]) => ({
-    produtoId,
-    quantidade,
-  }))
-}
+import { enviarEmailAlertaStock } from '@/lib/email'
 
 export async function GET() {
   try {
@@ -40,149 +13,94 @@ export async function GET() {
           },
         },
       },
-      orderBy: {
-        dataVenda: 'desc',
-      },
+      orderBy: { dataVenda: 'desc' },
     })
-
     return NextResponse.json(vendas, { status: 200 })
-  } catch (erro) {
-    console.error(erro)
-    return NextResponse.json(
-      { erro: 'Erro ao listar vendas' },
-      { status: 500 }
-    )
+  } catch (error) {
+    return NextResponse.json({ erro: 'Erro ao listar vendas' }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
     const dados = await request.json()
-    const { utilizadorId, observacoes, itensVenda } = dados
+    
+    // Aceita tanto 'itens' quanto 'itensVenda' para evitar erros de integração
+    const itensParaProcessar = dados.itens || dados.itensVenda
 
-    const utilizadorIdNum = parseInteger(utilizadorId)
-    if (!utilizadorIdNum) {
-      return NextResponse.json(
-        { erro: 'utilizadorId inválido ou obrigatório' },
-        { status: 400 }
-      )
+    if (!itensParaProcessar || itensParaProcessar.length === 0) {
+      return NextResponse.json({ erro: 'A venda deve ter pelo menos um item' }, { status: 400 })
     }
 
-    if (!Array.isArray(itensVenda) || itensVenda.length === 0) {
-      return NextResponse.json(
-        { erro: 'Itens da venda são obrigatórios' },
-        { status: 400 }
-      )
-    }
+    // Iniciar transação para garantir consistência entre Venda e Estoque
+    const resultado = await prisma.$transaction(async (tx) => {
+      let totalVenda = 0
+      let lucroTotalVenda = 0
+      const itensParaCriar = []
 
-    const itens = itensVenda.map((item: any) => ({
-      produtoId: parseInteger(item.produtoId),
-      quantidade: parseInteger(item.quantidade),
-    }))
+      for (const item of itensParaProcessar) {
+        const produto = await tx.produto.findUnique({
+          where: { id: item.produtoId },
+        })
 
-    if (itens.some((item) => !item.produtoId || !item.quantidade || item.quantidade <= 0)) {
-      return NextResponse.json(
-        { erro: 'Cada item deve ter produtoId e quantidade válidos maiores que zero' },
-        { status: 400 }
-      )
-    }
+        if (!produto) throw new Error(`Produto ${item.produtoId} não encontrado`)
+        if (produto.quantidade < item.quantidade) {
+          throw new Error(`Estoque insuficiente para o produto: ${produto.nome}`)
+        }
 
-    const itensAgrupados = agruparItens(itens)
-    const produtoIds = itensAgrupados.map((item) => item.produtoId)
+        const subtotal = produto.preco * item.quantidade
+        const lucroUnitario = produto.preco - produto.custo
+        
+        totalVenda += subtotal
+        lucroTotalVenda += lucroUnitario * item.quantidade
 
-    const utilizador = await prisma.utilizador.findUnique({
-      where: { id: utilizadorIdNum },
-    })
+        itensParaCriar.push({
+          produtoId: produto.id,
+          quantidade: item.quantidade,
+          precoUnitario: produto.preco,
+          lucroUnitario: lucroUnitario,
+          subtotal: subtotal,
+        })
 
-    if (!utilizador) {
-      return NextResponse.json(
-        { erro: 'Utilizador não encontrado' },
-        { status: 404 }
-      )
-    }
-
-    const produtos = await prisma.produto.findMany({
-      where: { id: { in: produtoIds } },
-    })
-
-    if (produtos.length !== produtoIds.length) {
-      return NextResponse.json(
-        { erro: 'Um ou mais produtos não foram encontrados' },
-        { status: 404 }
-      )
-    }
-
-    const itensData = itensAgrupados.map((item) => {
-      const produto = produtos.find((produto) => produto.id === item.produtoId)!
-      if (item.quantidade > produto.quantidade) {
-        throw new Error(`Estoque insuficiente para produto ${produto.nome}`)
+        // Atualizar estoque
+        await tx.produto.update({
+          where: { id: produto.id },
+          data: { quantidade: { decrement: item.quantidade } },
+        })
       }
 
-      const precoUnitario = produto.preco
-      const lucroUnitario = produto.preco - produto.custo
-      const subtotal = precoUnitario * item.quantidade
-
-      return {
-        produtoId: produto.id,
-        quantidade: item.quantidade,
-        precoUnitario,
-        lucroUnitario,
-        subtotal,
-      }
-    })
-
-    const total = itensData.reduce((acc, item) => acc + item.subtotal, 0)
-    const lucroTotal = itensData.reduce((acc, item) => acc + item.lucroUnitario * item.quantidade, 0)
-
-    const venda = await prisma.$transaction(async (tx) => {
-      const vendaCriada = await tx.venda.create({
+      const novaVenda = await tx.venda.create({
         data: {
-          total,
-          lucroTotal,
-          observacoes: observacoes?.trim() || null,
-          utilizador: {
-            connect: { id: utilizadorIdNum },
-          },
+          utilizadorId: dados.utilizadorId, // Assumindo que utilizadorId vem nos dados
+          observacoes: dados.observacoes,
+          total: totalVenda,
+          lucroTotal: lucroTotalVenda,
           itensVenda: {
-            create: itensData,
+            create: itensParaCriar,
           },
         },
-        include: {
-          utilizador: true,
-          itensVenda: {
-            include: {
-              produto: true,
-            },
-          },
-        },
+        include: { itensVenda: true },
       })
 
-      await Promise.all(
-        itensData.map((item) =>
-          tx.produto.update({
-            where: { id: item.produtoId },
-            data: {
-              quantidade: {
-                decrement: item.quantidade,
-              },
-            },
-          })
-        )
-      )
-
-      return vendaCriada
+      return novaVenda
     })
 
-    return NextResponse.json(venda, { status: 201 })
-  } catch (erro: any) {
-    console.error(erro)
-    if (String(erro.message).includes('Estoque insuficiente')) {
-      return NextResponse.json({ erro: erro.message }, { status: 400 })
-    }
+    // Verificação de stock baixo após a criação da venda para disparar alertas por email
+    const vendaCompleta = await prisma.venda.findUnique({
+      where: { id: resultado.id },
+      include: { itensVenda: { include: { produto: true } } }
+    })
 
-    return NextResponse.json(
-      { erro: 'Erro ao criar venda' },
-      { status: 500 }
-    )
+    vendaCompleta?.itensVenda.forEach((item) => {
+      const p = item.produto
+      if (p.quantidade < p.quantidadeMinima) {
+        enviarEmailAlertaStock(p.nome, p.quantidade, p.quantidadeMinima)
+      }
+    })
+
+    return NextResponse.json(resultado, { status: 201 })
+  } catch (error: any) {
+    console.error(error)
+    return NextResponse.json({ erro: error.message || 'Erro ao processar venda' }, { status: 400 })
   }
 }

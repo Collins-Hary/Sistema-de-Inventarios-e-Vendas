@@ -7,111 +7,34 @@ export async function GET() {
       include: {
         categoria: true,
       },
-      orderBy: {
-        criadorEm: 'desc',
-      },
+      orderBy: { nome: 'asc' },
     })
-
     return NextResponse.json(produtos, { status: 200 })
-  } catch (erro) {
-    console.error(erro)
-    return NextResponse.json(
-      { erro: 'Erro ao listar produtos' },
-      { status: 500 }
-    )
+  } catch (error) {
+    console.error('Erro ao listar produtos:', error)
+    return NextResponse.json({ erro: 'Erro ao listar produtos' }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
     const dados = await request.json()
-    const {
-      nome,
-      descricao,
-      preco,
-      custo,
-      quantidade,
-      quantidadeMinima,
-      categoriaId,
-      ativo,
-    } = dados
+    const { nome, descricao, preco, custo, quantidade, quantidadeMinima, categoriaId, ativo } = dados
 
-    if (!nome?.trim()) {
-      return NextResponse.json(
-        { erro: 'Nome do produto é obrigatório' },
-        { status: 400 }
-      )
-    }
-
-    if (categoriaId == null) {
-      return NextResponse.json(
-        { erro: 'Categoria é obrigatória' },
-        { status: 400 }
-      )
-    }
-
-    if (preco == null || custo == null || quantidade == null || quantidadeMinima == null) {
-      return NextResponse.json(
-        { erro: 'Preço, custo, quantidade e quantidade mínima são obrigatórios' },
-        { status: 400 }
-      )
-    }
-
-    const precoNum = Number(preco)
-    const custoNum = Number(custo)
-    const quantidadeNum = Number(quantidade)
-    const quantidadeMinimaNum = Number(quantidadeMinima)
-    const categoriaIdNum = Number(categoriaId)
-
-    if (Number.isNaN(precoNum) || precoNum < 0) {
-      return NextResponse.json(
-        { erro: 'Preço deve ser um número válido maior ou igual a zero' },
-        { status: 400 }
-      )
-    }
-
-    if (Number.isNaN(custoNum) || custoNum < 0) {
-      return NextResponse.json(
-        { erro: 'Custo deve ser um número válido maior ou igual a zero' },
-        { status: 400 }
-      )
-    }
-
-    if (Number.isNaN(quantidadeNum) || quantidadeNum < 0) {
-      return NextResponse.json(
-        { erro: 'Quantidade deve ser um número inteiro maior ou igual a zero' },
-        { status: 400 }
-      )
-    }
-
-    if (Number.isNaN(quantidadeMinimaNum) || quantidadeMinimaNum < 0) {
-      return NextResponse.json(
-        { erro: 'Quantidade mínima deve ser um número inteiro maior ou igual a zero' },
-        { status: 400 }
-      )
-    }
-
-    const categoria = await prisma.categoria.findUnique({
-      where: { id: categoriaIdNum },
-    })
-
-    if (!categoria) {
-      return NextResponse.json(
-        { erro: 'Categoria não encontrada' },
-        { status: 404 }
-      )
+    if (!nome || preco === undefined || custo === undefined || categoriaId === undefined) {
+      return NextResponse.json({ erro: 'Campos obrigatórios ausentes: nome, preco, custo e categoriaId' }, { status: 400 })
     }
 
     const produto = await prisma.produto.create({
       data: {
         nome: nome.trim(),
         descricao: descricao?.trim() || null,
-        preco: precoNum,
-        custo: custoNum,
-        quantidade: quantidadeNum,
-        quantidadeMinima: quantidadeMinimaNum,
-        ativo: ativo === false ? false : true,
-        categoriaId: categoriaIdNum,
+        preco: Number(preco),
+        custo: Number(custo),
+        quantidade: Number(quantidade || 0),
+        quantidadeMinima: Number(quantidadeMinima || 0),
+        categoriaId: Number(categoriaId),
+        ativo: ativo !== undefined ? !!ativo : true,
       },
       include: {
         categoria: true,
@@ -119,11 +42,11 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(produto, { status: 201 })
-  } catch (erro) {
-    console.error(erro)
-    return NextResponse.json(
-      { erro: 'Erro ao criar produto' },
-      { status: 500 }
-    )
+  } catch (error: any) {
+    console.error('Erro ao criar produto:', error)
+    if (error.code === 'P2002') {
+      return NextResponse.json({ erro: 'Já existe um produto com este nome' }, { status: 409 })
+    }
+    return NextResponse.json({ erro: 'Erro ao criar produto' }, { status: 500 })
   }
 }

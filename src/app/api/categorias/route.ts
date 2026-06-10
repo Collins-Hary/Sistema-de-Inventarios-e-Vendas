@@ -1,3 +1,4 @@
+// Este ficheiro deve retornar apenas a lista de categorias.
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 

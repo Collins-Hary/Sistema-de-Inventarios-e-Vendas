@@ -209,6 +209,10 @@ export async function PUT(
     // Verificação de stock baixo pós-venda para disparar alertas
     vendaAtualizada.itensVenda.forEach((item: any) => {
       const p = item.produto
+      // Garante que p.quantidadeMinima existe antes de comparar
+      if (p.quantidadeMinima === undefined || p.quantidadeMinima === null) {
+        p.quantidadeMinima = 0; // Define um valor padrão se não estiver definido
+      }
       if (p.quantidade < p.quantidadeMinima) {
         enviarEmailAlertaStock(p.nome, p.quantidade, p.quantidadeMinima)
       }

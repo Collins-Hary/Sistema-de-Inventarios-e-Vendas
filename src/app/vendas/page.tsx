@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Navbar from '@/components/Navbar'
 import Sidebar from '@/components/Sidebar'
 import Button from '@/components/Button'
+import { FileSpreadsheet } from 'lucide-react'
 import Input from '@/components/Input'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import FormVenda from '@/components/FormVenda'
@@ -65,7 +66,9 @@ export default function VendasPage() {
       ])
 
       if (!vendasResponse.ok || !produtosResponse.ok) {
-        throw new Error('Erro ao buscar dados de vendas ou produtos.')
+        const vendasError = vendasResponse.ok ? '' : `Erro vendas: ${vendasResponse.status} ${vendasResponse.statusText}. `
+        const produtosError = produtosResponse.ok ? '' : `Erro produtos: ${produtosResponse.status} ${produtosResponse.statusText}. `
+        throw new Error(`Erro ao buscar dados: ${vendasError}${produtosError}Verifique o console para mais detalhes.`)
       }
 
       const vendasData = await vendasResponse.json()
@@ -132,6 +135,10 @@ export default function VendasPage() {
     buscarDados()
   }
 
+  const handleExportarCSV = () => {
+    window.location.href = '/api/vendas/exportar'
+  }
+
   return (
     <div>
       <Navbar />
@@ -144,7 +151,12 @@ export default function VendasPage() {
               <h1 className="text-4xl font-bold">🛒 Vendas</h1>
               <p className="text-gray-600 mt-1">Registre novas vendas e acompanhe lucros e produtos vendidos.</p>
             </div>
-            <Button onClick={() => setAbrirModal(true)}>+ Nova Venda</Button>
+            <div className="flex gap-3">
+              <Button variant="secondary" onClick={handleExportarCSV} className="gap-2">
+                <FileSpreadsheet size={18} /> Exportar CSV
+              </Button>
+              <Button onClick={() => setAbrirModal(true)}>+ Nova Venda</Button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">

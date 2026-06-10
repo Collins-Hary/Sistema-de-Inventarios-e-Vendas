@@ -168,10 +168,10 @@ public/
 - [x] Badge na Navbar mostrando número de produtos com stock baixo
 
 #### **Dia 2: Relatórios e Extras**
-- [ ] Exportar vendas para CSV
-- [ ] Gráfico de lucro por categoria
-- [ ] Histórico de movimentação de stock
-- [ ] Auditoria (quem criou/alterou o quê)
+- [x] Exportar vendas para CSV
+- [x] Gráfico de lucro por categoria
+- [x] Histórico de movimentação de stock (API Base)
+- [x] Auditoria (quem criou/alterou o quê) (API Base)
 
 ---
 

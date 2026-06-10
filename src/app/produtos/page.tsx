@@ -52,12 +52,16 @@ export default function ProdutosPage() {
       ])
 
       if (!produtosResponse.ok || !categoriasResponse.ok) {
-        throw new Error('Erro ao buscar dados de produtos ou categorias.')
+        const produtosError = produtosResponse.ok ? '' : `Erro produtos: ${produtosResponse.status} ${produtosResponse.statusText}. `
+        const categoriasError = categoriasResponse.ok ? '' : `Erro categorias: ${categoriasResponse.status} ${categoriasResponse.statusText}. `
+        throw new Error(`Erro ao buscar dados: ${produtosError}${categoriasError}Verifique o console para mais detalhes.`)
       }
 
       const produtosData = await produtosResponse.json()
       const categoriasData = await categoriasResponse.json()
 
+      // Adicionar verificação para garantir que categoriasData é um array
+      // Esta verificação já estava presente, mas é bom reforçar.
       // Adicionar verificação para garantir que categoriasData é um array
       if (!Array.isArray(categoriasData)) {
         console.error('API de categorias retornou dados em formato inesperado:', categoriasData)
