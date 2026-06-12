@@ -44,6 +44,7 @@ export async function GET(
       where: { id },
       include: {
         utilizador: true,
+        cliente: true,
         itensVenda: {
           include: {
             produto: true,

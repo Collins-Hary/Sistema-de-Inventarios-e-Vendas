@@ -7,6 +7,7 @@ export async function GET() {
       select: {
         id: true,
         nome: true,
+        role: true,
       },
       orderBy: {
         nome: 'asc',

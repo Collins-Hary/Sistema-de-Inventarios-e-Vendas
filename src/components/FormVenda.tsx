@@ -22,16 +22,28 @@ interface VendaItemForm {
   quantidade: string
 }
 
+interface ClienteParaVenda {
+  id: number
+  nome: string
+  email?: string
+  telefone?: string
+}
+
 interface FormVendaProps {
   produtos: ProdutoParaVenda[]
   onCancel: () => void
   utilizadores: Utilizador[] // Adicionado para seleção de utilizador
+  clientes: ClienteParaVenda[]
   onSaved: () => void
 }
 
-export default function FormVenda({ produtos, utilizadores, onCancel, onSaved }: FormVendaProps) {
+export default function FormVenda({ produtos, utilizadores, clientes, onCancel, onSaved }: FormVendaProps) {
   const [utilizadorId, setUtilizadorId] = useState(utilizadores?.[0]?.id?.toString() || '')
   const [observacoes, setObservacoes] = useState('')
+  const [clienteSelecionado, setClienteSelecionado] = useState('')
+  const [novoClienteNome, setNovoClienteNome] = useState('')
+  const [novoClienteEmail, setNovoClienteEmail] = useState('')
+  const [novoClienteTelefone, setNovoClienteTelefone] = useState('')
   const [itensVenda, setItensVenda] = useState<VendaItemForm[]>([
     { produtoId: produtos[0]?.id?.toString() || '', quantidade: '1' },
   ])
@@ -106,16 +118,34 @@ export default function FormVenda({ produtos, utilizadores, onCancel, onSaved }:
     setCarregando(true)
 
     try {
+      const payload: any = {
+        utilizadorId: Number(utilizadorId),
+        observacoes: observacoes.trim(),
+        itensVenda: itensValidos,
+      }
+
+      if (clienteSelecionado === 'new') {
+        if (!novoClienteNome.trim()) {
+          setErro('O nome do novo cliente é obrigatório.')
+          setCarregando(false)
+          return
+        }
+
+        payload.cliente = {
+          nome: novoClienteNome.trim(),
+          email: novoClienteEmail.trim() || undefined,
+          telefone: novoClienteTelefone.trim() || undefined,
+        }
+      } else if (clienteSelecionado) {
+        payload.clienteId = Number(clienteSelecionado)
+      }
+
       const response = await fetch('/api/vendas', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          utilizadorId: Number(utilizadorId),
-          observacoes: observacoes.trim(),
-          itensVenda: itensValidos,
-        }),
+        body: JSON.stringify(payload),
       })
 
       if (!response.ok) {
@@ -153,7 +183,24 @@ export default function FormVenda({ produtos, utilizadores, onCancel, onSaved }:
             <option value="">Selecione um utilizador</option>
             {utilizadores.map((utilizador) => (
               <option key={utilizador.id} value={utilizador.id}>
-                {utilizador.nome}
+                {utilizador.nome} {utilizador.role ? `(${utilizador.role})` : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Cliente</label>
+          <select
+            value={clienteSelecionado}
+            onChange={(event) => setClienteSelecionado(event.target.value)}
+            disabled={carregando}
+            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <option value="">Sem cliente</option>
+            <option value="new">Novo cliente</option>
+            {clientes.map((cliente) => (
+              <option key={cliente.id} value={cliente.id}>
+                {cliente.nome}
               </option>
             ))}
           </select>
@@ -170,6 +217,40 @@ export default function FormVenda({ produtos, utilizadores, onCancel, onSaved }:
           />
         </div>
       </div>
+
+      {clienteSelecionado === 'new' && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Nome do cliente</label>
+            <Input
+              value={novoClienteNome}
+              onChange={(event) => setNovoClienteNome(event.target.value)}
+              disabled={carregando}
+              placeholder="Nome do cliente"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+            <Input
+              type="email"
+              value={novoClienteEmail}
+              onChange={(event) => setNovoClienteEmail(event.target.value)}
+              disabled={carregando}
+              placeholder="Email do cliente"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
+            <Input
+              type="tel"
+              value={novoClienteTelefone}
+              onChange={(event) => setNovoClienteTelefone(event.target.value)}
+              disabled={carregando}
+              placeholder="Telefone do cliente"
+            />
+          </div>
+        </div>
+      )}
 
       <div className="space-y-4">
         {itensVenda.map((item, index) => (

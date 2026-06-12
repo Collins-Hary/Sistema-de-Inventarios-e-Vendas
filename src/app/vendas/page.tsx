@@ -12,6 +12,14 @@ import FormVenda from '@/components/FormVenda'
 interface Utilizador {
   id: number
   nome: string
+  role?: string
+}
+
+interface Cliente {
+  id: number
+  nome: string
+  email?: string
+  telefone?: string
 }
 
 interface ItemVenda {
@@ -33,6 +41,7 @@ interface Venda {
   lucroTotal: number
   observacoes: string | null
   utilizador: Utilizador
+  cliente?: Cliente | null
   itensVenda: ItemVenda[]
 }
 
@@ -55,6 +64,7 @@ export default function VendasPage() {
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState('')
   const [utilizadores, setUtilizadores] = useState<Utilizador[]>([])
+  const [clientes, setClientes] = useState<Cliente[]>([])
   const [sucesso, setSucesso] = useState('')
 
   const buscarDados = async () => {
@@ -62,13 +72,14 @@ export default function VendasPage() {
     setErro('')
 
     try {
-      const [vendasResponse, utilizadoresResponse, produtosResponse] = await Promise.all([
+      const [vendasResponse, utilizadoresResponse, clientesResponse, produtosResponse] = await Promise.all([
         fetch('/api/vendas'),
         fetch('/api/utilizadores'), // Buscar utilizadores
+        fetch('/api/clientes'),
         fetch('/api/produtos'),
       ])
 
-      if (!vendasResponse.ok || !utilizadoresResponse.ok || !produtosResponse.ok) {
+      if (!vendasResponse.ok || !utilizadoresResponse.ok || !clientesResponse.ok || !produtosResponse.ok) {
         const vendasError = vendasResponse.ok ? '' : `Erro vendas: ${vendasResponse.status} ${vendasResponse.statusText}. `
         const utilizadoresError = utilizadoresResponse.ok ? '' : `Erro utilizadores: ${utilizadoresResponse.status} ${utilizadoresResponse.statusText}. `
         const produtosError = produtosResponse.ok ? '' : `Erro produtos: ${produtosResponse.status} ${produtosResponse.statusText}. `
@@ -78,10 +89,12 @@ export default function VendasPage() {
       const vendasData = await vendasResponse.json()
       const produtosData = await produtosResponse.json()
       const utilizadoresData = await utilizadoresResponse.json()
+      const clientesData = await clientesResponse.json()
       
       setVendas(vendasData)
       setProdutos(produtosData)
       setUtilizadores(utilizadoresData)
+      setClientes(clientesData)
     } catch (error: any) {
       setErro(error.message || 'Não foi possível carregar os dados de vendas.')
     } finally {
@@ -223,6 +236,7 @@ export default function VendasPage() {
                       <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">ID</th>
                       <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Data</th>
                       <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Utilizador</th>
+                      <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Cliente</th>
                       <th className="px-4 py-4 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Total</th>
                       <th className="px-4 py-4 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Lucro</th>
                       <th className="px-4 py-4 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Itens</th>
@@ -240,7 +254,13 @@ export default function VendasPage() {
                         <tr key={venda.id} className="hover:bg-gray-50">
                           <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{venda.id}</td>
                           <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">{formatarData(venda.dataVenda)}</td>
-                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">{venda.utilizador.nome}</td>
+                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                            {venda.utilizador.nome}
+                            {venda.utilizador.role ? ` — ${venda.utilizador.role}` : ''}
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                            {venda.cliente?.nome || '-'}
+                          </td>
                           <td className="px-4 py-4 whitespace-nowrap text-sm text-right text-gray-900">Kz{venda.total.toFixed(2)}</td>
                           <td className="px-4 py-4 whitespace-nowrap text-sm text-right text-green-700">Kz{venda.lucroTotal.toFixed(2)}</td>
                           <td className="px-4 py-4 whitespace-nowrap text-sm text-right text-gray-600">{venda.itensVenda.length}</td>
@@ -273,6 +293,7 @@ export default function VendasPage() {
                 <FormVenda 
                   produtos={produtos} 
                   utilizadores={utilizadores} // Passar utilizadores para o formulário
+                  clientes={clientes}
                   onCancel={fecharModal} 
                   onSaved={handleVendaSalva} />
               </div>

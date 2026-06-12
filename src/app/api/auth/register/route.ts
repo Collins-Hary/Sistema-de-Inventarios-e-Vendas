@@ -5,7 +5,7 @@ import { hashPassword } from '@/lib/auth'
 export async function POST(request: NextRequest) {
   try {
     const dados = await request.json()
-    const { nome, email, senha } = dados
+    const { nome, email, senha, role } = dados
 
     if (!nome?.trim() || !email?.trim() || !senha?.trim()) {
       return NextResponse.json(
@@ -36,6 +36,7 @@ export async function POST(request: NextRequest) {
         nome: nome.trim(),
         email: emailNormalizado,
         senha: senhaHash,
+        role: role?.trim() || 'Vendedor',
       },
     })
 

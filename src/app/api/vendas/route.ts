@@ -6,6 +6,7 @@ export async function GET() {
     const vendas = await prisma.venda.findMany({
       include: {
         utilizador: true,
+        cliente: true,
         itensVenda: {
           include: {
             produto: true,
@@ -37,11 +38,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ erro: 'A venda deve ter pelo menos um item' }, { status: 400 })
     }
 
-    // Iniciar transação para garantir consistência entre Venda e Estoque
+    const clienteId = dados.clienteId ? Number(dados.clienteId) : null
+    const clienteDados = dados.cliente
+
+    // Iniciar transação para garantir consistência entre Venda, Cliente e Estoque
     const resultado = await prisma.$transaction(async (tx) => {
       let totalVenda = 0
       let lucroTotalVenda = 0
       const itensParaCriar = []
+      let clienteIdParaVenda: number | undefined = undefined
+
+      if (clienteId) {
+        const clienteExistente = await tx.cliente.findUnique({ where: { id: clienteId } })
+        if (!clienteExistente) {
+          throw new Error(`Cliente (ID ${clienteId}) não encontrado no sistema.`)
+        }
+        clienteIdParaVenda = clienteId
+      } else if (clienteDados && clienteDados.nome?.trim()) {
+        const novoCliente = await tx.cliente.create({
+          data: {
+            nome: clienteDados.nome.trim(),
+            email: clienteDados.email?.trim() || null,
+            telefone: clienteDados.telefone?.trim() || null,
+          },
+        })
+        clienteIdParaVenda = novoCliente.id
+      }
 
       for (const item of itensParaProcessar) {
         const produto = await tx.produto.findUnique({
@@ -77,14 +99,18 @@ export async function POST(request: NextRequest) {
       const novaVenda = await tx.venda.create({
         data: {
           utilizadorId: utilizadorId,
-          observacoes,
+          clienteId: clienteIdParaVenda,
+          observacoes: dados.observacoes?.trim() || null,
           total: totalVenda,
           lucroTotal: lucroTotalVenda,
           itensVenda: {
             create: itensParaCriar,
           },
         },
-        include: { itensVenda: true },
+        include: {
+          itensVenda: true,
+          cliente: true,
+        },
       })
 
       return novaVenda
